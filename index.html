@@ -1,0 +1,976 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>The Daily Pour — Talk. Move. Tidy.</title>
+<meta name="theme-color" content="#171a16">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="Daily Pour">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Zilla+Slab:wght@400;600;700&family=Caveat:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --board: #171a16;
+    --board-edge: #0f110d;
+    --chalk: #ece7db;
+    --chalk-dim: #a9a89b;
+    --brass: #c99a3e;
+    --brass-dim: #8a6b2c;
+    --rust: #9a4f3d;
+    --talk: #c99a3e;
+    --move: #c2703f;
+    --tidy: #7c9b6f;
+  }
+
+  * { box-sizing: border-box; }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }
+  }
+
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background: radial-gradient(ellipse at 50% -10%, #23261f 0%, #14160f 55%, #0b0c08 100%);
+    font-family: 'Inter', sans-serif;
+    color: var(--chalk);
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 28px 16px 60px;
+  }
+
+  .wrap { width: 100%; max-width: 420px; }
+
+  .eyebrow {
+    text-align: center;
+    font-family: 'Caveat', cursive;
+    font-size: 1.3rem;
+    color: var(--brass);
+    letter-spacing: 0.02em;
+    margin-bottom: 2px;
+    transform: rotate(-1deg);
+  }
+
+  h1 {
+    text-align: center;
+    font-family: 'Zilla Slab', serif;
+    font-weight: 700;
+    font-size: 1.9rem;
+    margin: 0 0 2px;
+    letter-spacing: 0.01em;
+  }
+
+  .tagline {
+    text-align: center;
+    font-family: 'Caveat', cursive;
+    font-size: 1.05rem;
+    color: var(--chalk-dim);
+    margin: 0 0 18px;
+  }
+
+  .level-strip {
+    text-align: center;
+    margin-bottom: 16px;
+  }
+
+  .level-line {
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 0.78rem;
+    letter-spacing: 0.03em;
+    color: var(--chalk);
+    margin-bottom: 8px;
+  }
+
+  .level-line .num { color: var(--brass); }
+
+  .week-dots {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+  }
+
+  .week-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    border: 1.5px solid rgba(236,231,219,0.25);
+    background: transparent;
+  }
+
+  .week-dot.filled {
+    background: var(--brass);
+    border-color: var(--brass);
+  }
+
+  .level-note {
+    font-family: 'Caveat', cursive;
+    font-size: 0.95rem;
+    color: var(--chalk-dim);
+    margin-top: 6px;
+  }
+
+  .taps {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+
+  .tap {
+    flex: 1;
+    background: transparent;
+    border: 1.5px solid rgba(236,231,219,0.18);
+    color: var(--chalk-dim);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 0.78rem;
+    letter-spacing: 0.02em;
+    padding: 9px 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    transition: border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+  }
+
+  .tap .dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    flex-shrink: 0;
+  }
+
+  .tap.active {
+    border-color: var(--accent-tap);
+    color: var(--chalk);
+  }
+
+  .tap.done {
+    background: var(--accent-tap);
+    border-color: var(--accent-tap);
+    color: var(--board);
+  }
+  .tap.done .dot {
+    background: var(--board);
+    border-color: var(--board);
+  }
+
+  .tap.alt {
+    background: transparent;
+    border-style: dashed;
+    border-color: var(--accent-tap);
+    color: var(--accent-tap);
+  }
+  .tap.alt .dot {
+    background: transparent;
+    border-color: var(--accent-tap);
+  }
+
+  .board {
+    position: relative;
+    background:
+      radial-gradient(circle at 15% 20%, rgba(255,255,255,0.025) 0, transparent 40%),
+      radial-gradient(circle at 80% 70%, rgba(255,255,255,0.02) 0, transparent 45%),
+      var(--board);
+    border-radius: 6px;
+    padding: 28px 22px 24px;
+    box-shadow:
+      inset 0 0 0 1px rgba(201,154,62,0.25),
+      inset 0 0 40px rgba(0,0,0,0.55),
+      0 18px 40px rgba(0,0,0,0.5);
+    border: 10px solid var(--board-edge);
+  }
+
+  .board::before, .board::after {
+    content: "";
+    position: absolute;
+    width: 10px; height: 10px;
+    background: var(--accent-tap);
+    border-radius: 50%;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.6);
+    transition: background 0.15s ease;
+  }
+  .board::before { top: -5px; left: -5px; }
+  .board::after { top: -5px; right: -5px; }
+
+  .category {
+    display: inline-block;
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--board);
+    background: var(--accent-tap);
+    padding: 4px 10px;
+    border-radius: 3px;
+    margin-bottom: 16px;
+    transition: background 0.15s ease;
+  }
+
+  .task {
+    font-family: 'Zilla Slab', serif;
+    font-size: 1.5rem;
+    line-height: 1.35;
+    color: var(--chalk);
+    margin: 0 0 6px;
+    min-height: 3.6em;
+  }
+
+  .task.standalone { margin-bottom: 22px; }
+
+  .task.loading { opacity: 0.3; }
+
+  .task-how {
+    display: none;
+    font-family: 'Caveat', cursive;
+    font-size: 1.05rem;
+    line-height: 1.4;
+    color: var(--chalk-dim);
+    margin: 0 0 22px;
+  }
+  .task-how.show { display: block; }
+  .task-how .label {
+    font-family: 'Inter', sans-serif;
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--accent-tap);
+    margin-right: 6px;
+  }
+
+  .row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  button.done {
+    flex: 1;
+    background: transparent;
+    border: 1.5px solid var(--accent-tap);
+    color: var(--chalk);
+    font-family: 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 0.92rem;
+    padding: 12px 14px;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+    letter-spacing: 0.01em;
+  }
+
+  button.done:hover { opacity: 0.85; }
+
+  button.done.completed {
+    background: var(--accent-tap);
+    border-color: var(--accent-tap);
+    color: var(--board);
+  }
+
+  .reroll {
+    background: none;
+    border: none;
+    color: var(--chalk-dim);
+    font-family: 'Caveat', cursive;
+    font-size: 1.05rem;
+    cursor: pointer;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+    padding: 6px 4px;
+    white-space: nowrap;
+  }
+  .reroll:hover { color: var(--accent-tap); }
+
+  .alt-link {
+    display: none;
+    background: none;
+    border: none;
+    color: var(--chalk-dim);
+    font-family: 'Caveat', cursive;
+    font-size: 0.98rem;
+    cursor: pointer;
+    text-decoration: underline dotted;
+    text-underline-offset: 3px;
+    padding: 8px 4px 0;
+    margin: 0 auto;
+    text-align: center;
+    width: 100%;
+  }
+  .alt-link:hover { color: var(--accent-tap); }
+  .alt-link.is-active { color: var(--rust); text-decoration: underline; }
+
+  .streak-block {
+    margin-top: 26px;
+    padding-top: 18px;
+    border-top: 1px dashed rgba(236,231,219,0.18);
+  }
+
+  .streak-label {
+    font-family: 'Caveat', cursive;
+    font-size: 1.05rem;
+    color: var(--chalk-dim);
+    margin-bottom: 8px;
+  }
+
+  .tally-rows { display: flex; flex-direction: column; gap: 5px; }
+  .tally-group { display: flex; align-items: flex-end; gap: 3px; height: 22px; }
+
+  .stroke {
+    width: 3px; height: 20px;
+    background: var(--accent-tap);
+    border-radius: 1px;
+    transform: rotate(-6deg);
+    transition: background 0.15s ease;
+  }
+  .stroke.cross {
+    position: relative;
+  }
+  .stroke.cross::after {
+    content: "";
+    position: absolute;
+    left: -11px; top: 9px;
+    width: 26px; height: 3px;
+    background: var(--rust);
+    transform: rotate(28deg);
+    border-radius: 1px;
+  }
+
+  .streak-count {
+    font-family: 'Zilla Slab', serif;
+    font-weight: 700;
+    font-size: 0.95rem;
+    color: var(--chalk);
+    margin-top: 8px;
+  }
+
+  .export {
+    display: block;
+    margin: 18px auto 0;
+    text-align: center;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.72rem;
+    letter-spacing: 0.03em;
+    color: var(--brass);
+    background: none;
+    border: 1px solid var(--brass-dim);
+    border-radius: 5px;
+    padding: 8px 14px;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .export:hover { color: var(--chalk); border-color: var(--brass); }
+
+  .reset {
+    display: block;
+    text-align: center;
+    margin-top: 22px;
+    font-size: 0.72rem;
+    color: rgba(169,168,155,0.5);
+    text-decoration: underline;
+    cursor: pointer;
+    background: none;
+    border: none;
+    font-family: 'Inter', sans-serif;
+  }
+  .reset:hover { color: var(--chalk-dim); }
+
+  .storage-warn {
+    display: none;
+    text-align: center;
+    margin-top: 10px;
+    font-size: 0.7rem;
+    line-height: 1.4;
+    color: var(--rust);
+    font-family: 'Inter', sans-serif;
+  }
+  .storage-warn.show { display: block; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="eyebrow">on tap tonight</div>
+  <h1>The Daily Pour</h1>
+  <div class="tagline">talk. move. tidy.</div>
+
+  <div class="level-strip">
+    <div class="level-line" id="levelLine">—</div>
+    <div class="week-dots" id="weekDots"></div>
+    <div class="level-note" id="levelNote"></div>
+  </div>
+
+  <div class="taps" id="taps">
+    <button class="tap" id="tapBtn-talk" data-cat="talk"><span class="dot"></span>Talk</button>
+    <button class="tap" id="tapBtn-move" data-cat="move"><span class="dot"></span>Move</button>
+    <button class="tap" id="tapBtn-tidy" data-cat="tidy"><span class="dot"></span>Tidy</button>
+  </div>
+
+  <div class="board" id="board">
+    <span class="category" id="category">—</span>
+    <p class="task loading" id="task">Pouring today's drill…</p>
+    <p class="task-how" id="taskHow"></p>
+
+    <div class="row">
+      <button class="done" id="doneBtn">Mark it done</button>
+      <button class="reroll" id="rerollBtn">pour a different one</button>
+    </div>
+    <button class="alt-link" id="altBtn">did something else instead (counts as a skip)</button>
+
+    <div class="streak-block">
+      <div class="streak-label">days running</div>
+      <div class="tally-rows" id="tallyRows"></div>
+      <div class="streak-count" id="streakCount">0 day streak</div>
+    </div>
+  </div>
+
+  <button class="export" id="exportBtn">export new activity (CSV)</button>
+  <button class="reset" id="resetBtn">reset everything</button>
+  <div class="storage-warn" id="storageWarn"></div>
+</div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+import { getDatabase, ref, get, set } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-database.js";
+
+// ─── Firebase config ─────────────────────────────────────────────────────────
+// Paste the config object from the Firebase console
+//   Project settings → Your apps → Web app
+// and the sign-in credentials you created under
+//   Authentication → Users
+const firebaseConfig = {
+  apiKey: "AIzaSyBWjVeUD3Nspbdd1TVeobDPjUtEHrwML6o",
+  authDomain: "daily-pour-a9c3e.firebaseapp.com",
+  databaseURL: "https://daily-pour-a9c3e-default-rtdb.firebaseio.com",
+  projectId: "daily-pour-a9c3e",
+  storageBucket: "daily-pour-a9c3e.firebasestorage.app",
+  messagingSenderId: "711900815111",
+  appId: "1:711900815111:web:87b0e068b933a0a7b6efa2"
+};
+const AUTH_EMAIL = "celauritz@gmail.com";
+const AUTH_PASSWORD = "dp-N0Ly8VoYOAZxIG691dJ1gbx5Ssyb";
+// ─────────────────────────────────────────────────────────────────────────────
+
+const fbApp = initializeApp(firebaseConfig);
+const fbAuth = getAuth(fbApp);
+const fbDb = getDatabase(fbApp);
+const stateRef = ref(fbDb, 'state');
+
+const TASKS = {
+  talk: [
+    { cat: "Opinion Reps", text: "Form and state an opinion on something random within 10 seconds, out loud, before you second-guess it.", how: "Pick anything in view — a sign, a drink, a song — and say what you think of it in one sentence, no hedging: \"that font's trying too hard\" beats \"I dunno, it's fine I guess.\"" },
+    { cat: "Story Bank", text: "Tell one real story from your week in under 30 seconds. Time it. Cut anything that isn't the point.", how: "Pick something that actually happened this week, tell it once out loud alone first, then again to a real person — skip the setup, start at the interesting part." },
+    { cat: "Statement > Question", text: "In your next conversation, swap your first instinct to ask a question for a statement or observation instead.", how: "Instead of \"how was your day\" try \"you've got end-of-shift energy.\" A statement gives them something to react to; a question just hands you an interview." },
+    { cat: "Labeling", text: "Reflect what someone says back in your own words before responding — \"sounds like...\", \"feels like...\".", how: "Name the emotion, not the facts. They say \"my flight got cancelled and I had to rebook twice\" — you say \"that sounds like a nightmare\" before asking anything else." },
+    { cat: "Give Before You Ask", text: "Share a small detail or opinion about yourself before asking the other person the same thing.", how: "Before \"where are you from,\" say \"I grew up outside Lawrence.\" Now it's a trade, not an interview." },
+    { cat: "Hold the Silence", text: "Let a pause sit for 3 full seconds after someone finishes talking, instead of filling it.", how: "Count to three in your head. It'll feel long — let it be long. They usually fill it with something better than your next question would've gotten." },
+    { cat: "Curiosity Fuel", text: "Learn one genuinely interesting fact today you could casually drop into a conversation.", how: "Look up one weird fact before you head out. Drop it in naturally when there's a lull: \"random, but did you know—\"" },
+    { cat: "Callback Humor", text: "Reference something from earlier in a conversation later on, as a callback.", how: "Mentally flag one specific thing someone says early on. Later, bring it back: \"okay but seriously, back to the raccoon thing—\"" },
+    { cat: "Notice One Detail", text: "Comment on something specific and unusual about the person, place, or moment in front of you.", how: "Skip \"nice place\" — try \"I like that you've got mismatched chairs, feels lived-in.\" Specific beats general every time." },
+    { cat: "Warmth Check", text: "Give someone a specific, genuine compliment — about a choice they made, not just how they look.", how: "Not \"you look nice\" — \"that color's a good choice on you\" or \"I like that you went with the bold order instead of the safe one.\"" },
+    { cat: "Exit Line", text: "Prepare and use one graceful way to leave a conversation that isn't \"well, I should get going.\"", how: "Try: \"I'm gonna go refill/circulate, but good talking to you.\" States the action, doesn't apologize for leaving." },
+    { cat: "Playful Disagreement", text: "Push back lightly on something someone says today — teasingly, instead of just agreeing.", how: "When someone states an opinion, try \"hard disagree, and here's why\" with a smile. Teasing pushback, not an argument." },
+    { cat: "Name Recall", text: "Use someone's name naturally twice in a conversation without it feeling forced.", how: "Use it right after you learn it (\"good to meet you, Sam\"), then again later mid-sentence when it's not required — that's the rep that sticks." },
+    { cat: "Close the Loop", text: "If someone starts a story, ask what happened at the end — don't let it trail off unfinished.", how: "If they trail off — \"anyway, so then I—\" — jump in with \"wait, then what happened?\" Don't let it die." },
+    { cat: "Would You Rather", text: "Drop a \"would you rather\" or hypothetical into a lull instead of a status question.", how: "\"Would you rather it rain every weekend or snow every weekday\" — low stakes, easy to answer, opens a tangent." },
+    { cat: "Self-Deprecating Timing", text: "Land one lighthearted joke at your own expense today — work on the timing, not just the line.", how: "Land it on a real, small thing — you spilled something, got lost — not a big insecurity. One sentence, then move on, don't dwell on it." },
+    { cat: "Energy Match", text: "Notice someone's energy level — loud/quiet, fast/slow — and consciously match it for one exchange.", how: "Loud and fast? Pick up your pace and volume slightly. Low-key? Drop yours. Match for one full exchange and notice how the flow changes." },
+    { cat: "Turn Complaint Into Bit", text: "Take a minor annoyance today and tell it as a funny 20-second bit instead of a complaint.", how: "Instead of \"traffic was awful\" try \"I aged four years on I-70 today.\" Exaggerate it into a bit instead of just venting." },
+    { cat: "Ask Their Take", text: "Instead of \"how's it going,\" ask for someone's take on something specific and current.", how: "\"What'd you think of [specific current thing]\" beats \"how's it going\" — gives them something with an actual answer." },
+    { cat: "Follow the Thread", text: "When someone mentions something offhand, ask one follow-up that digs in instead of moving on.", how: "They mention a trip, a job, a hobby offhand — ask one specific follow-up before it moves on: \"wait, what do you actually do there?\"" },
+    { cat: "Read the Room", text: "Before speaking, silently note whether the room's energy is loud, quiet, tense, or easy — match your opener to it.", how: "Is this a loud group riffing, or a quiet one-on-one? Match your first line to that energy instead of running the same opener everywhere." },
+    { cat: "Specific > Generic", text: "Replace \"what do you do\" with a sharper, more specific question about their day or interests.", how: "\"What's the most annoying part of your job\" beats \"what do you do\" — weirder question, more honest answer." },
+    { cat: "Physical Presence", text: "Practice open, relaxed body language for one full conversation — no crossed arms, no phone glances.", how: "Uncross your arms, put the phone away, face the person instead of the room. Notice how much of the conversation was you, not just what you said." },
+    { cat: "Tension and Release", text: "Build a little suspense in a story before the punchline, instead of front-loading the point.", how: "Delay the punchline by one beat: \"so I show up, completely soaked, and — the door's locked.\" Let the pause do some work first." },
+    { cat: "The Genuine Why", text: "Ask someone \"why\" they like something they just mentioned, instead of just \"that's cool.\"", how: "\"Why do you like that band?\" gets a real answer. \"That's cool\" gets nothing back. Ask why once today instead of just agreeing." },
+    { cat: "Two-Way Banter", text: "Turn a compliment someone gives you into a light tease back, instead of just saying thanks.", how: "They say \"nice shirt\" — instead of \"thanks,\" try \"I know, I dress myself and everything.\" Tease yourself lightly back instead of just accepting it." },
+    { cat: "First Impression Line", text: "Prepare one non-generic opener you could use on a stranger today, and actually try it once.", how: "Skip \"hi, how are you\" once — try something with a little specificity: \"you look like you have opinions about this playlist.\"" },
+    { cat: "Vulnerability Rep", text: "Share one honest, slightly unpolished detail about yourself instead of the usual polished version.", how: "\"I got way too invested in that today\" beats the safe, tidy version of the story. Say the true thing instead of the smooth one." },
+    { cat: "Group Entry", text: "Practice joining a group conversation already in progress with one line, instead of hovering.", how: "Walk up, wait for a natural pause, add one line related to what's already being said. Ride their topic in — don't open a new one." },
+    { cat: "The Callback Exit", text: "End a conversation by referencing something fun from earlier in it — \"anyway, good luck with the thing.\"", how: "\"Anyway, go easy on the raccoon story next time\" — end on something specific from the conversation instead of a flat goodbye." }
+  ],
+  move: [
+    { cat: "Squat & Push Circuit", text: "3 rounds: 12 squats, 10 push-ups, 20-second plank. Rest 60 seconds between rounds." },
+    { cat: "Walk It Off", text: "15-minute brisk walk outside — phone in your pocket, no stopping." },
+    { cat: "Core Circuit", text: "15 bicycle crunches, 10 leg raises, 30-second plank. Repeat twice." },
+    { cat: "Stair Sprints", text: "10 trips up and down the stairs at a hard pace, resting as needed to fill 15 minutes." },
+    { cat: "Stretch Flow", text: "Slow, full-body stretch for 15 minutes — hold each stretch 30 seconds, focus on hips and shoulders." },
+    { cat: "Lunge & Jack Set", text: "20 lunges each leg, 15 push-ups, 30 jumping jacks. Two rounds if there's time." },
+    { cat: "Jump Session", text: "15 minutes of jump rope, or high-knees in place if there's no rope handy." },
+    { cat: "Wall Sit Ladder", text: "1-minute wall sit, 30-second rest, repeat 5 times. Fill whatever's left with push-ups." },
+    { cat: "Just Move", text: "Put music on and move continuously for 15 minutes — dancing counts, no form required." },
+    { cat: "Burpee Sets", text: "20 burpees broken into sets you can manage, resting between sets, across 15 minutes." },
+    { cat: "Sun Salutations", text: "Slow, controlled yoga sun salutations for 15 minutes." },
+    { cat: "Loaded Carry", text: "Grab the heaviest thing you can hold safely and walk laps around the house for 15 minutes." },
+    { cat: "Tabata Block", text: "20 seconds max effort (squats or push-ups), 10 seconds rest, 8 rounds. Repeat the block once more." },
+    { cat: "Roll or Ride", text: "15-minute bike ride if you've got one, otherwise a fast-paced walk." },
+    { cat: "Mobility Reset", text: "Ankle circles, hip openers, shoulder rolls, neck stretches — 15 unhurried minutes." },
+    { cat: "Five-Move Cycle", text: "Pick 5 exercises, 45 seconds each with 15 seconds rest, cycle through for 15 minutes." },
+    { cat: "Shadow Rounds", text: "Shadow boxing — 3-minute rounds with 30-second rests, for 15 minutes total." },
+    { cat: "Step-Up Set", text: "Step-ups on a stair or sturdy step for 15 minutes, alternating legs." },
+    { cat: "Plank Rotation", text: "Standard, side, side plank — 30 seconds each, 3 rounds, fill the rest with squats." },
+    { cat: "Family Court", text: "Shoot hoops or toss a ball around with the boys for 15 minutes — movement counts, it doesn't have to be a workout." }
+  ],
+  tidy: [
+    { cat: "Counter Reset", text: "Wipe down all kitchen counters and the stovetop, top to bottom." },
+    { cat: "Clear One Surface", text: "Clear and wipe one flat surface that's collected clutter — counter, desk, or table." },
+    { cat: "Quick Sweep", text: "Vacuum or sweep one full room, corners included." },
+    { cat: "Dish Duty", text: "Load and start the dishwasher, or hand-wash whatever's sitting in the sink." },
+    { cat: "Trash Run", text: "Gather and take out all trash and recycling in the house." },
+    { cat: "Touchpoint Wipe", text: "Wipe down light switches, doorknobs, and handles on your way through the house." },
+    { cat: "Drawer Sort", text: "Sort one drawer or shelf — toss, keep, relocate." },
+    { cat: "Dust Pass", text: "Dust visible surfaces in one room — shelves, sills, trim." },
+    { cat: "Bathroom Reset", text: "Clean one bathroom: counter, mirror, and toilet exterior." },
+    { cat: "Bed Strip", text: "Strip and remake one bed." },
+    { cat: "Appliance Wipe", text: "Wipe down the inside of the microwave and one other appliance." },
+    { cat: "Entry Sweep", text: "Sweep the porch, entryway, or front steps." },
+    { cat: "Mail Triage", text: "Go through the mail pile and recycle or file everything in it." },
+    { cat: "Scuff Patrol", text: "Spot-clean scuffs and marks on walls or baseboards in one room — old houses collect it fast." },
+    { cat: "Laundry Fold", text: "Fold and put away one load of laundry." },
+    { cat: "Plant Check", text: "Water the plants and wipe down their surfaces or trays." },
+    { cat: "Fridge Pass", text: "Clean out one section of the fridge — toss expired stuff, wipe the shelf." },
+    { cat: "Under-the-Radar", text: "Vacuum under one piece of furniture you normally skip." },
+    { cat: "Baseboard Line", text: "Wipe down door frames and baseboards in the hallway." },
+    { cat: "Reset Lap", text: "Set a timer, walk the house, and put back anything out of place — one lap, no stopping." }
+  ]
+};
+
+const DONE_LABEL = { talk: "Mark it done", move: "Log the rep", tidy: "Call it clean" };
+const DONE_LABEL_ACTIVE = { talk: "Done for tonight", move: "Logged for today", tidy: "Clean for today" };
+const REROLL_LABEL = { talk: "pour a different one", move: "swap the move", tidy: "swap the chore" };
+
+const STORAGE_KEY = 'daily-pour-v3-state';
+const CATS = ['talk', 'move', 'tidy'];
+const MAX_LEVEL = 3;
+const WEEK_TARGET = 7;
+const EXPORT_LABEL = 'export new activity (CSV)';
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function dateStr(d) {
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function shuffledIndices(n) {
+  const arr = Array.from({length: n}, (_, i) => i);
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function computeStreak(completedSet, today) {
+  let count = 0;
+  let cursor = new Date(today + 'T00:00:00');
+  if (!completedSet.has(dateStr(cursor))) {
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  while (completedSet.has(dateStr(cursor))) {
+    count++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return count;
+}
+
+function freshState() {
+  const today = todayStr();
+  const s = { lastDate: today, level: 1, levelStreak: 0, cleanWeeks: 0, lastExportDate: today };
+  CATS.forEach(c => {
+    s[c] = {
+      order: shuffledIndices(TASKS[c].length),
+      basePointer: 0,
+      rerollOffset: 0,
+      completed: []
+    };
+  });
+  s.tidy.altDates = [];
+  return s;
+}
+
+// Firebase strips empty arrays and can hand back arrays as key/value objects;
+// this restores the exact shape freshState() produces so the rest of the
+// logic below is untouched.
+function reviveState(s) {
+  const asArray = v => Array.isArray(v) ? v : (v && typeof v === 'object' ? Object.values(v) : []);
+  CATS.forEach(c => {
+    if (!s[c] || typeof s[c] !== 'object') s[c] = {};
+    const cs = s[c];
+    cs.order = asArray(cs.order);
+    if (cs.order.length !== TASKS[c].length) cs.order = shuffledIndices(TASKS[c].length);
+    cs.completed = asArray(cs.completed);
+    if (typeof cs.basePointer !== 'number') cs.basePointer = 0;
+    if (typeof cs.rerollOffset !== 'number') cs.rerollOffset = 0;
+  });
+  s.tidy.altDates = asArray(s.tidy.altDates);
+  if (typeof s.level !== 'number') s.level = 1;
+  if (typeof s.levelStreak !== 'number') s.levelStreak = 0;
+  if (typeof s.cleanWeeks !== 'number') s.cleanWeeks = 0;
+  if (!s.lastDate) s.lastDate = todayStr();
+  if (!s.lastExportDate) s.lastExportDate = '1970-01-01';
+  return s;
+}
+
+let state = null;
+let activeTab = 'talk';
+
+async function loadState() {
+  try {
+    const snap = await get(stateRef);
+    if (snap.exists()) {
+      return snap.val();
+    }
+  } catch (e) {
+    console.error('Firebase load failed', e);
+  }
+  return null;
+}
+
+async function saveState(s) {
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      await set(stateRef, s);
+      setStorageWarning(false);
+      return true;
+    } catch (e) {
+      console.error('Storage save failed', e);
+    }
+    if (attempt === 0) {
+      await new Promise(r => setTimeout(r, 400));
+    }
+  }
+  setStorageWarning(true);
+  return false;
+}
+
+function setStorageWarning(show) {
+  const el = document.getElementById('storageWarn');
+  if (!el) return;
+  el.classList.toggle('show', show);
+  el.textContent = show
+    ? "today's progress isn't saving right now — keep this open, or check back and re-tap if it doesn't stick"
+    : '';
+}
+
+async function init() {
+  const today = todayStr();
+  let s = await loadState();
+
+  if (!s) {
+    s = freshState();
+    await saveState(s);
+  } else {
+    reviveState(s);
+  }
+
+  if (s.lastDate !== today) {
+    const oldDate = s.lastDate;
+    const doneYesterday = CATS.filter(c => {
+      if (!s[c].completed.includes(oldDate)) return false;
+      if (c === 'tidy' && s.tidy.altDates.includes(oldDate)) return false;
+      return true;
+    }).length;
+    const required = s.level;
+
+    if (doneYesterday >= required) {
+      s.levelStreak = (s.levelStreak || 0) + 1;
+      if (s.levelStreak >= WEEK_TARGET) {
+        if (s.level < MAX_LEVEL) {
+          s.level += 1;
+        } else {
+          s.cleanWeeks = (s.cleanWeeks || 0) + 1;
+        }
+        s.levelStreak = 0;
+      }
+    } else {
+      s.levelStreak = 0;
+    }
+
+    CATS.forEach(c => {
+      const cs = s[c];
+      cs.basePointer = (cs.basePointer + 1) % cs.order.length;
+      if (cs.basePointer === 0) {
+        cs.order = shuffledIndices(TASKS[c].length);
+      }
+      cs.rerollOffset = 0;
+    });
+    s.lastDate = today;
+    await saveState(s);
+  }
+
+  state = s;
+
+  const firstUndone = CATS.find(c => !state[c].completed.includes(today));
+  activeTab = firstUndone || 'talk';
+
+  render();
+}
+
+function currentTask(catKey) {
+  const cs = state[catKey];
+  const idx = cs.order[(cs.basePointer + cs.rerollOffset) % cs.order.length];
+  return TASKS[catKey][idx];
+}
+
+function isDoneToday(catKey) {
+  return state[catKey].completed.includes(todayStr());
+}
+
+function isAltToday() {
+  return state.tidy.altDates.includes(todayStr());
+}
+
+function isRealDoneToday(catKey) {
+  if (catKey !== 'tidy') return isDoneToday(catKey);
+  return isDoneToday('tidy') && !isAltToday();
+}
+
+function render() {
+  document.documentElement.style.setProperty('--accent-tap', `var(--${activeTab})`);
+
+  CATS.forEach(c => {
+    const btn = document.getElementById('tapBtn-' + c);
+    btn.classList.toggle('active', c === activeTab);
+    btn.classList.toggle('done', isRealDoneToday(c));
+    btn.classList.toggle('alt', c === 'tidy' && isAltToday());
+    btn.style.setProperty('--accent-tap', `var(--${c})`);
+  });
+
+  const t = currentTask(activeTab);
+  document.getElementById('category').textContent = t.cat;
+  const taskEl = document.getElementById('task');
+  taskEl.textContent = t.text;
+  taskEl.classList.remove('loading');
+  taskEl.classList.toggle('standalone', !t.how);
+
+  const howEl = document.getElementById('taskHow');
+  if (t.how) {
+    howEl.innerHTML = `<span class="label">how</span>${t.how}`;
+    howEl.classList.add('show');
+  } else {
+    howEl.classList.remove('show');
+  }
+
+  const doneToday = isRealDoneToday(activeTab);
+  const btn = document.getElementById('doneBtn');
+  btn.textContent = doneToday ? DONE_LABEL_ACTIVE[activeTab] : DONE_LABEL[activeTab];
+  btn.classList.toggle('completed', doneToday);
+
+  document.getElementById('rerollBtn').textContent = REROLL_LABEL[activeTab];
+
+  const altBtnEl = document.getElementById('altBtn');
+  if (activeTab === 'tidy') {
+    altBtnEl.style.display = 'block';
+    const alt = isAltToday();
+    altBtnEl.textContent = alt
+      ? 'undo — that was logged as a skip'
+      : 'did something else instead (counts as a skip)';
+    altBtnEl.classList.toggle('is-active', alt);
+  } else {
+    altBtnEl.style.display = 'none';
+  }
+
+  const completedSet = new Set(state[activeTab].completed);
+  const streak = computeStreak(completedSet, todayStr());
+  document.getElementById('streakCount').textContent =
+    streak === 1 ? '1 day streak' : streak + ' day streak';
+
+  renderTally(streak);
+  renderLevel();
+}
+
+function renderLevel() {
+  const level = state.level;
+  const doneToday = CATS.filter(c => isDoneToday(c)).length;
+  const skipToday = isAltToday() ? 1 : 0;
+  const suffix = skipToday ? ` (incl. ${skipToday} skip)` : '';
+  const lineEl = document.getElementById('levelLine');
+
+  if (level >= MAX_LEVEL) {
+    lineEl.innerHTML = `Level <span class="num">${level}</span> of ${MAX_LEVEL} — clear all 3 today (${doneToday}/3)${suffix}`;
+  } else {
+    lineEl.innerHTML = `Level <span class="num">${level}</span> of ${MAX_LEVEL} — today just needs ${level} of 3 (${doneToday}/${level})${suffix}`;
+  }
+
+  const dotsEl = document.getElementById('weekDots');
+  dotsEl.innerHTML = '';
+  for (let i = 0; i < WEEK_TARGET; i++) {
+    const d = document.createElement('div');
+    d.className = 'week-dot' + (i < state.levelStreak ? ' filled' : '');
+    dotsEl.appendChild(d);
+  }
+
+  const noteEl = document.getElementById('levelNote');
+  if (level >= MAX_LEVEL && state.cleanWeeks > 0) {
+    noteEl.textContent = state.cleanWeeks === 1
+      ? '1 full clean week at the top level'
+      : state.cleanWeeks + ' full clean weeks at the top level';
+  } else if (state.levelStreak === 0) {
+    noteEl.textContent = 'a clean week at this level moves you up';
+  } else {
+    noteEl.textContent = '';
+  }
+}
+
+function renderTally(streak) {
+  const container = document.getElementById('tallyRows');
+  container.innerHTML = '';
+  if (streak === 0) {
+    container.innerHTML = '<div style="font-family:\'Caveat\',cursive;color:var(--chalk-dim);font-size:0.95rem;">no marks yet — chalk one up today</div>';
+    return;
+  }
+  let remaining = streak;
+  while (remaining > 0) {
+    const groupCount = Math.min(5, remaining);
+    const group = document.createElement('div');
+    group.className = 'tally-group';
+    for (let i = 0; i < groupCount; i++) {
+      const s = document.createElement('div');
+      s.className = 'stroke' + (i === 4 ? ' cross' : '');
+      group.appendChild(s);
+    }
+    container.appendChild(group);
+    remaining -= groupCount;
+  }
+}
+
+CATS.forEach(c => {
+  document.getElementById('tapBtn-' + c).addEventListener('click', () => {
+    activeTab = c;
+    render();
+  });
+});
+
+document.getElementById('doneBtn').addEventListener('click', async () => {
+  const today = todayStr();
+  if (activeTab === 'tidy') {
+    const cs = state.tidy;
+    const inCompleted = cs.completed.includes(today);
+    const inAlt = cs.altDates.includes(today);
+    if (inCompleted && !inAlt) {
+      cs.completed = cs.completed.filter(d => d !== today);
+    } else if (inCompleted && inAlt) {
+      cs.altDates = cs.altDates.filter(d => d !== today);
+    } else {
+      cs.completed.push(today);
+    }
+  } else {
+    const cs = state[activeTab];
+    const idx = cs.completed.indexOf(today);
+    if (idx === -1) {
+      cs.completed.push(today);
+    } else {
+      cs.completed.splice(idx, 1);
+    }
+  }
+  await saveState(state);
+  render();
+});
+
+document.getElementById('altBtn').addEventListener('click', async () => {
+  if (activeTab !== 'tidy') return;
+  const today = todayStr();
+  const cs = state.tidy;
+  const inCompleted = cs.completed.includes(today);
+  const inAlt = cs.altDates.includes(today);
+  if (inCompleted && inAlt) {
+    cs.completed = cs.completed.filter(d => d !== today);
+    cs.altDates = cs.altDates.filter(d => d !== today);
+  } else if (inCompleted && !inAlt) {
+    cs.altDates.push(today);
+  } else {
+    cs.completed.push(today);
+    cs.altDates.push(today);
+  }
+  await saveState(state);
+  render();
+});
+
+document.getElementById('rerollBtn').addEventListener('click', async () => {
+  const cs = state[activeTab];
+  cs.rerollOffset = (cs.rerollOffset + 1) % cs.order.length;
+  await saveState(state);
+  render();
+});
+
+document.getElementById('exportBtn').addEventListener('click', async () => {
+  const btn = document.getElementById('exportBtn');
+  const since = state.lastExportDate || '1970-01-01';
+  const rows = [];
+  CATS.forEach(c => {
+    state[c].completed.forEach(d => {
+      if (d <= since) return;
+      let status = 'done';
+      if (c === 'tidy' && state.tidy.altDates.includes(d)) status = 'skip';
+      rows.push([d, c, status]);
+    });
+  });
+  rows.sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : (a[1] < b[1] ? -1 : 1));
+
+  if (rows.length === 0) {
+    btn.textContent = 'nothing new since last export';
+    setTimeout(() => { btn.textContent = EXPORT_LABEL; }, 1800);
+    return;
+  }
+
+  const csv = 'date,category,status\n' + rows.map(r => r.join(',')).join('\n') + '\n';
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'daily-pour-' + todayStr() + '.csv';
+  a.target = '_blank';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+
+  state.lastExportDate = todayStr();
+  const ok = await saveState(state);
+  btn.textContent = ok
+    ? `exported ${rows.length} row${rows.length === 1 ? '' : 's'}`
+    : "exported — but the marker didn't save";
+  setTimeout(() => { btn.textContent = EXPORT_LABEL; }, 2500);
+});
+
+document.getElementById('resetBtn').addEventListener('click', async () => {
+  if (!confirm("Clear your level and all streaks? This can't be undone.")) return;
+  state = freshState();
+  activeTab = 'talk';
+  await saveState(state);
+  render();
+});
+
+async function start() {
+  try {
+    await signInWithEmailAndPassword(fbAuth, AUTH_EMAIL, AUTH_PASSWORD);
+  } catch (e) {
+    console.error('Firebase auth failed', e);
+    setStorageWarning(true);
+    const t = document.getElementById('task');
+    t.textContent = "can't reach the board right now — check your connection and reopen";
+    t.classList.remove('loading');
+    return;
+  }
+  init();
+}
+
+start();
+</script>
+</body>
+</html>
