@@ -355,6 +355,36 @@
     margin-top: 8px;
   }
 
+  .skip-day {
+    display: block;
+    margin: 0 auto 14px;
+    font-family: 'Inter', sans-serif;
+    font-size: 0.68rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--chalk-dim);
+    background: none;
+    border: 1px solid rgba(236,231,219,0.18);
+    border-radius: 5px;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: color 0.15s ease, border-color 0.15s ease;
+  }
+  .skip-day:hover { color: var(--chalk); border-color: rgba(236,231,219,0.4); }
+  .skip-day.is-active {
+    color: var(--rust);
+    border-color: var(--rust);
+    cursor: default;
+    text-transform: none;
+    letter-spacing: 0.02em;
+  }
+
+  .board.skipped .category,
+  .board.skipped .row,
+  .board.skipped .alt-link,
+  .board.skipped .task-how { opacity: 0.3; pointer-events: none; }
+  .board.skipped .task { opacity: 0.6; }
+
   .export {
     display: block;
     margin: 18px auto 0;
@@ -410,6 +440,8 @@
     <div class="level-note" id="levelNote"></div>
   </div>
 
+  <button class="skip-day" id="skipDayBtn">skip today</button>
+
   <div class="taps" id="taps">
     <button class="tap" id="tapBtn-talk" data-cat="talk"><span class="dot"></span>Talk</button>
     <button class="tap" id="tapBtn-move" data-cat="move"><span class="dot"></span>Move</button>
@@ -425,7 +457,9 @@
       <button class="done" id="doneBtn">Mark it done</button>
       <button class="reroll" id="rerollBtn">pour a different one</button>
     </div>
+    <button class="alt-link" id="irrelevantBtn">can't do this one — hide it</button>
     <button class="alt-link" id="altBtn">did something else instead (counts as a skip)</button>
+    <button class="alt-link" id="excuseBtn">stayed in — didn't talk to anyone today</button>
 
     <div class="streak-block">
       <div class="streak-label">days running</div>
@@ -574,15 +608,25 @@ function shuffledIndices(n) {
   return arr;
 }
 
-function computeStreak(completedSet, today) {
+function computeStreak(completedSet, today, bridgeSet) {
+  bridgeSet = bridgeSet || new Set();
   let count = 0;
   let cursor = new Date(today + 'T00:00:00');
   if (!completedSet.has(dateStr(cursor))) {
     cursor.setDate(cursor.getDate() - 1);
   }
-  while (completedSet.has(dateStr(cursor))) {
-    count++;
-    cursor.setDate(cursor.getDate() - 1);
+  while (true) {
+    const d = dateStr(cursor);
+    if (bridgeSet.has(d)) {           // skip day / excused: step over, don't count, don't break
+      cursor.setDate(cursor.getDate() - 1);
+      continue;
+    }
+    if (completedSet.has(d)) {
+      count++;
+      cursor.setDate(cursor.getDate() - 1);
+      continue;
+    }
+    break;
   }
   return count;
 }
@@ -599,6 +643,9 @@ function freshState() {
     };
   });
   s.tidy.altDates = [];
+  s.talk.excusedDates = [];
+  s.skipDays = [];
+  s.irrelevant = [];
   return s;
 }
 
@@ -617,6 +664,9 @@ function reviveState(s) {
     if (typeof cs.rerollOffset !== 'number') cs.rerollOffset = 0;
   });
   s.tidy.altDates = asArray(s.tidy.altDates);
+  s.talk.excusedDates = asArray(s.talk.excusedDates);
+  s.skipDays = asArray(s.skipDays);
+  s.irrelevant = asArray(s.irrelevant).filter(e => e && e.date && e.category && e.task);
   if (typeof s.level !== 'number') s.level = 1;
   if (typeof s.levelStreak !== 'number') s.levelStreak = 0;
   if (typeof s.cleanWeeks !== 'number') s.cleanWeeks = 0;
@@ -679,25 +729,30 @@ async function init() {
 
   if (s.lastDate !== today) {
     const oldDate = s.lastDate;
-    const doneYesterday = CATS.filter(c => {
-      if (!s[c].completed.includes(oldDate)) return false;
-      if (c === 'tidy' && s.tidy.altDates.includes(oldDate)) return false;
-      return true;
-    }).length;
-    const required = s.level;
 
-    if (doneYesterday >= required) {
-      s.levelStreak = (s.levelStreak || 0) + 1;
-      if (s.levelStreak >= WEEK_TARGET) {
-        if (s.level < MAX_LEVEL) {
-          s.level += 1;
-        } else {
-          s.cleanWeeks = (s.cleanWeeks || 0) + 1;
+    // A skip day is frozen: no escalation, no reset.
+    if (!s.skipDays.includes(oldDate)) {
+      const doneYesterday = CATS.filter(c => {
+        if (c === 'talk' && s.talk.excusedDates.includes(oldDate)) return true; // "stayed in" counts as satisfied
+        if (!s[c].completed.includes(oldDate)) return false;
+        if (c === 'tidy' && s.tidy.altDates.includes(oldDate)) return false;
+        return true;
+      }).length;
+      const required = s.level;
+
+      if (doneYesterday >= required) {
+        s.levelStreak = (s.levelStreak || 0) + 1;
+        if (s.levelStreak >= WEEK_TARGET) {
+          if (s.level < MAX_LEVEL) {
+            s.level += 1;
+          } else {
+            s.cleanWeeks = (s.cleanWeeks || 0) + 1;
+          }
+          s.levelStreak = 0;
         }
+      } else {
         s.levelStreak = 0;
       }
-    } else {
-      s.levelStreak = 0;
     }
 
     CATS.forEach(c => {
@@ -720,10 +775,19 @@ async function init() {
   render();
 }
 
+function mutedCats(catKey) {
+  return new Set(state.irrelevant.filter(e => e.category === catKey).map(e => e.task));
+}
+
 function currentTask(catKey) {
   const cs = state[catKey];
-  const idx = cs.order[(cs.basePointer + cs.rerollOffset) % cs.order.length];
-  return TASKS[catKey][idx];
+  const n = cs.order.length;
+  const muted = mutedCats(catKey);
+  for (let i = 0; i < n; i++) {
+    const task = TASKS[catKey][cs.order[(cs.basePointer + cs.rerollOffset + i) % n]];
+    if (!muted.has(task.cat)) return task;
+  }
+  return TASKS[catKey][cs.order[(cs.basePointer + cs.rerollOffset) % n]]; // everything muted — show it anyway
 }
 
 function isDoneToday(catKey) {
@@ -734,35 +798,54 @@ function isAltToday() {
   return state.tidy.altDates.includes(todayStr());
 }
 
+function isExcusedToday(catKey) {
+  return catKey === 'talk' && state.talk.excusedDates.includes(todayStr());
+}
+
+function isSkipDay() {
+  return state.skipDays.includes(todayStr());
+}
+
 function isRealDoneToday(catKey) {
   if (catKey !== 'tidy') return isDoneToday(catKey);
   return isDoneToday('tidy') && !isAltToday();
 }
 
 function render() {
+  const skip = isSkipDay();
   document.documentElement.style.setProperty('--accent-tap', `var(--${activeTab})`);
 
   CATS.forEach(c => {
     const btn = document.getElementById('tapBtn-' + c);
     btn.classList.toggle('active', c === activeTab);
-    btn.classList.toggle('done', isRealDoneToday(c));
-    btn.classList.toggle('alt', c === 'tidy' && isAltToday());
+    btn.classList.toggle('done', !skip && isRealDoneToday(c));
+    btn.classList.toggle('alt', !skip && ((c === 'tidy' && isAltToday()) || isExcusedToday(c)));
     btn.style.setProperty('--accent-tap', `var(--${c})`);
   });
 
-  const t = currentTask(activeTab);
-  document.getElementById('category').textContent = t.cat;
-  const taskEl = document.getElementById('task');
-  taskEl.textContent = t.text;
-  taskEl.classList.remove('loading');
-  taskEl.classList.toggle('standalone', !t.how);
+  const board = document.getElementById('board');
+  board.classList.toggle('skipped', skip);
 
+  const t = currentTask(activeTab);
+  const taskEl = document.getElementById('task');
   const howEl = document.getElementById('taskHow');
-  if (t.how) {
-    howEl.innerHTML = `<span class="label">how</span>${t.how}`;
-    howEl.classList.add('show');
-  } else {
+  taskEl.classList.remove('loading');
+
+  if (skip) {
+    document.getElementById('category').textContent = '—';
+    taskEl.textContent = "Today's a skip day — nothing counts for or against you. Back tomorrow.";
+    taskEl.classList.add('standalone');
     howEl.classList.remove('show');
+  } else {
+    document.getElementById('category').textContent = t.cat;
+    taskEl.textContent = t.text;
+    taskEl.classList.toggle('standalone', !t.how);
+    if (t.how) {
+      howEl.innerHTML = `<span class="label">how</span>${t.how}`;
+      howEl.classList.add('show');
+    } else {
+      howEl.classList.remove('show');
+    }
   }
 
   const doneToday = isRealDoneToday(activeTab);
@@ -772,8 +855,11 @@ function render() {
 
   document.getElementById('rerollBtn').textContent = REROLL_LABEL[activeTab];
 
+  const irrEl = document.getElementById('irrelevantBtn');
+  irrEl.style.display = skip ? 'none' : 'block';
+
   const altBtnEl = document.getElementById('altBtn');
-  if (activeTab === 'tidy') {
+  if (activeTab === 'tidy' && !skip) {
     altBtnEl.style.display = 'block';
     const alt = isAltToday();
     altBtnEl.textContent = alt
@@ -784,8 +870,26 @@ function render() {
     altBtnEl.style.display = 'none';
   }
 
-  const completedSet = new Set(state[activeTab].completed);
-  const streak = computeStreak(completedSet, todayStr());
+  const excEl = document.getElementById('excuseBtn');
+  if (activeTab === 'talk' && !skip) {
+    excEl.style.display = 'block';
+    const exc = isExcusedToday('talk');
+    excEl.textContent = exc
+      ? 'undo — logged as "stayed in"'
+      : "stayed in — didn't talk to anyone today";
+    excEl.classList.toggle('is-active', exc);
+  } else {
+    excEl.style.display = 'none';
+  }
+
+  const sdEl = document.getElementById('skipDayBtn');
+  sdEl.classList.toggle('is-active', skip);
+  sdEl.textContent = skip ? 'today is a skip day' : 'skip today';
+  sdEl.disabled = skip;
+
+  const bridge = new Set(state.skipDays);
+  if (activeTab === 'talk') state.talk.excusedDates.forEach(d => bridge.add(d));
+  const streak = computeStreak(new Set(state[activeTab].completed), todayStr(), bridge);
   document.getElementById('streakCount').textContent =
     streak === 1 ? '1 day streak' : streak + ' day streak';
 
@@ -795,15 +899,17 @@ function render() {
 
 function renderLevel() {
   const level = state.level;
-  const doneToday = CATS.filter(c => isDoneToday(c)).length;
-  const skipToday = isAltToday() ? 1 : 0;
-  const suffix = skipToday ? ` (incl. ${skipToday} skip)` : '';
+  const satisfied = CATS.filter(c => isDoneToday(c) || isExcusedToday(c)).length;
+  const skipCount = (isAltToday() ? 1 : 0) + (isExcusedToday('talk') ? 1 : 0);
+  const suffix = skipCount ? ` (incl. ${skipCount} skip${skipCount > 1 ? 's' : ''})` : '';
   const lineEl = document.getElementById('levelLine');
 
-  if (level >= MAX_LEVEL) {
-    lineEl.innerHTML = `Level <span class="num">${level}</span> of ${MAX_LEVEL} — clear all 3 today (${doneToday}/3)${suffix}`;
+  if (isSkipDay()) {
+    lineEl.innerHTML = `Level <span class="num">${level}</span> of ${MAX_LEVEL} — today skipped, nothing counts`;
+  } else if (level >= MAX_LEVEL) {
+    lineEl.innerHTML = `Level <span class="num">${level}</span> of ${MAX_LEVEL} — clear all 3 today (${satisfied}/3)${suffix}`;
   } else {
-    lineEl.innerHTML = `Level <span class="num">${level}</span> of ${MAX_LEVEL} — today just needs ${level} of 3 (${doneToday}/${level})${suffix}`;
+    lineEl.innerHTML = `Level <span class="num">${level}</span> of ${MAX_LEVEL} — today just needs ${level} of 3 (${satisfied}/${level})${suffix}`;
   }
 
   const dotsEl = document.getElementById('weekDots');
@@ -856,6 +962,7 @@ CATS.forEach(c => {
 });
 
 document.getElementById('doneBtn').addEventListener('click', async () => {
+  if (isSkipDay()) return;
   const today = todayStr();
   if (activeTab === 'tidy') {
     const cs = state.tidy;
@@ -873,6 +980,9 @@ document.getElementById('doneBtn').addEventListener('click', async () => {
     const idx = cs.completed.indexOf(today);
     if (idx === -1) {
       cs.completed.push(today);
+      if (activeTab === 'talk') {
+        state.talk.excusedDates = state.talk.excusedDates.filter(d => d !== today);
+      }
     } else {
       cs.completed.splice(idx, 1);
     }
@@ -882,7 +992,7 @@ document.getElementById('doneBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('altBtn').addEventListener('click', async () => {
-  if (activeTab !== 'tidy') return;
+  if (activeTab !== 'tidy' || isSkipDay()) return;
   const today = todayStr();
   const cs = state.tidy;
   const inCompleted = cs.completed.includes(today);
@@ -901,8 +1011,41 @@ document.getElementById('altBtn').addEventListener('click', async () => {
 });
 
 document.getElementById('rerollBtn').addEventListener('click', async () => {
+  if (isSkipDay()) return;
   const cs = state[activeTab];
   cs.rerollOffset = (cs.rerollOffset + 1) % cs.order.length;
+  await saveState(state);
+  render();
+});
+
+document.getElementById('irrelevantBtn').addEventListener('click', async () => {
+  if (isSkipDay()) return;
+  const t = currentTask(activeTab);
+  if (!confirm(`Hide "${t.cat}" for good? It won't come back unless you reset everything.`)) return;
+  state.irrelevant.push({ date: todayStr(), category: activeTab, task: t.cat });
+  await saveState(state);
+  render();
+});
+
+document.getElementById('excuseBtn').addEventListener('click', async () => {
+  if (activeTab !== 'talk' || isSkipDay()) return;
+  const today = todayStr();
+  const arr = state.talk.excusedDates;
+  const i = arr.indexOf(today);
+  if (i === -1) {
+    arr.push(today);
+    state.talk.completed = state.talk.completed.filter(d => d !== today);
+  } else {
+    arr.splice(i, 1);
+  }
+  await saveState(state);
+  render();
+});
+
+document.getElementById('skipDayBtn').addEventListener('click', async () => {
+  if (isSkipDay()) return;
+  if (!confirm("Skip today? It won't count for or against your streak, and this can't be undone.")) return;
+  state.skipDays.push(todayStr());
   await saveState(state);
   render();
 });
@@ -910,14 +1053,24 @@ document.getElementById('rerollBtn').addEventListener('click', async () => {
 document.getElementById('exportBtn').addEventListener('click', async () => {
   const btn = document.getElementById('exportBtn');
   const since = state.lastExportDate || '1970-01-01';
+  const esc = v => /[",\n]/.test(v) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v);
   const rows = [];
   CATS.forEach(c => {
     state[c].completed.forEach(d => {
       if (d <= since) return;
       let status = 'done';
       if (c === 'tidy' && state.tidy.altDates.includes(d)) status = 'skip';
-      rows.push([d, c, status]);
+      rows.push([d, c, status, '']);
     });
+  });
+  state.talk.excusedDates.forEach(d => {
+    if (d > since) rows.push([d, 'talk', 'excused', '']);
+  });
+  state.skipDays.forEach(d => {
+    if (d > since) rows.push([d, '', 'skip_day', '']);
+  });
+  state.irrelevant.forEach(e => {
+    if (e.date > since) rows.push([e.date, e.category, 'irrelevant', e.task]);
   });
   rows.sort((a, b) => a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : (a[1] < b[1] ? -1 : 1));
 
@@ -927,7 +1080,7 @@ document.getElementById('exportBtn').addEventListener('click', async () => {
     return;
   }
 
-  const csv = 'date,category,status\n' + rows.map(r => r.join(',')).join('\n') + '\n';
+  const csv = 'date,category,status,task\n' + rows.map(r => r.map(esc).join(',')).join('\n') + '\n';
   const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
